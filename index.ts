@@ -5,9 +5,10 @@ import {
   type ResponseInputItem,
 } from "openai/resources/responses/responses";
 import { exit } from "process";
-import { z } from "zod/v4";
+import { readFileTool } from "./tools/read-file";
+import { listFilesTool } from "./tools/list-files";
 
-type ToolDef = FunctionTool & {
+export type ToolDef = FunctionTool & {
   function: (params: string) => string | Promise<string>;
 };
 
@@ -97,7 +98,7 @@ class Agent {
 
   private runInference(context: unknown, conversation: ResponseInput) {
     return this.client.responses.create({
-      model: "gpt-4.1-nano",
+      model: "gpt-4.1-mini",
       input: conversation,
       tools: this.tools,
       max_output_tokens: 1024,
@@ -109,6 +110,7 @@ class Agent {
     if (!tool) {
       throw new Error(`Tool '${name}' not found`);
     }
+    console.info(`[tool]: ${name}(${input})`);
     return await tool.function(input);
   }
 }
@@ -118,39 +120,14 @@ function getUserMessage() {
   return userMessage;
 }
 
-const readFileParams = z.object({
-  path: z
-    .string()
-    .describe("The relative path of a file in the working directory."),
-});
-
-async function readFile(input: string) {
-  const inputJSON = JSON.parse(input);
-  const { data, success } = readFileParams.safeParse(inputJSON);
-  if (!success) {
-    throw new Error(`Invalid input: ${JSON.stringify(input)}`);
-  }
-
-  const file = Bun.file(data.path);
-
-  return await file.text();
-}
-
-const readFileTool: ToolDef = {
-  type: "function",
-  name: "read_file",
-  description:
-    "Read the contents of a given relative file path. Use this when you want to see what's inside a file. Do not use this with directory names.",
-  strict: true,
-  function: readFile,
-  parameters: z.toJSONSchema(readFileParams),
-};
-
 async function main() {
   const openai = new OpenAI({
     apiKey: process.env.OPEN_AI_API_KEY,
   });
-  const agent = new Agent(openai, getUserMessage, [readFileTool]);
+  const agent = new Agent(openai, getUserMessage, [
+    readFileTool,
+    listFilesTool,
+  ]);
   agent.run(null);
 }
 
