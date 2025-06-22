@@ -7,6 +7,7 @@ import {
 import { exit } from "process";
 import { readFileTool } from "./tools/read-file";
 import { listFilesTool } from "./tools/list-files";
+import { editFileTool } from "./tools/edit-file";
 
 export type ToolDef = FunctionTool & {
   function: (params: string) => string | Promise<string>;
@@ -127,6 +128,7 @@ async function main() {
   const agent = new Agent(openai, getUserMessage, [
     readFileTool,
     listFilesTool,
+    editFileTool,
   ]);
   agent.run(null);
 }
